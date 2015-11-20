@@ -1,4 +1,26 @@
-git verify-pack -v  .git/objects/pack/pack-9fcd5bac90f03e23983a98aa8900a41597053e5f.idx | sort -k 3 -n
-git rev-list --objects --all | grep 82c99a3e86bb1267b236a4b6eff7868d97489af1
-git log --oneline --branches -- git.tgz
-git filter-branch -f --index-filter 'git rm --ignore-unmatch --cached git.tgz' -- 072ce62158c401d2c2fff08cd944de08bfdd25c3
+#!/bin/bash
+
+#http://git-scm.com/book/en/v2/Git-Internals-Maintenance-and-Data-Recovery#Removing-Objects
+
+echo "Obtengho el HASH de los blobs grandes ..."
+hashes=`git verify-pack -v .git/objects/pack/pack-* | sort -k 3 -n | tail -2 | cut -d" " -f 1`
+
+echo ""
+echo ""
+echo "$hashes"
+echo ""
+echo ""
+echo "Ogengo los nombres de los blobs grandes ..."
+
+while read line; do
+    name=`git rev-list --objects --all | grep $line | cut -d" " -f 2`
+    echo "Filtro $name"
+    git filter-branch --force --index-filter "git rm --cached -r --ignore-unmatch $name" --prune-empty --tag-name-filter cat -- --all
+    echo""
+done <<< "$hashes"
+
+echo "****** Git Garbage Collector ******"
+rm -rf .git/refs/original/ 
+git reflog expire --expire=now --all 
+git gc --prune=now
+git gc --aggressive --prune
